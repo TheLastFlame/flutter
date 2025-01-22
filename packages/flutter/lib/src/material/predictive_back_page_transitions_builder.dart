@@ -317,12 +317,12 @@ class PredictiveBackPageSharedElementTransitionsBuilder extends PageTransitionsB
     return PredictiveBackGestureBuilder(
       updateRouteUserGestureProgress: route.isCurrent,
       transitionBuilder: (
-        context,
-        phase,
-        startBackEvent,
-        currentBackEvent,
-        predictiveAnimation,
-        child,
+        BuildContext context,
+        PredictiveBackPhase phase,
+        PredictiveBackEvent? startBackEvent,
+        PredictiveBackEvent? currentBackEvent,
+        Animation<double> predictiveAnimation,
+        Widget child,
       ) {
         return _PredictiveBackPageSharedElementTransition(
           route: route,
@@ -403,14 +403,15 @@ class _PredictiveBackPageSharedElementTransitionState
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: commitController,
-      builder: (context, child) {
+      builder: (BuildContext context, Widget? child) {
         if (widget.route.popGestureInProgress) {
-          final predictiveFrame = PredictiveBackPageSharedElementFrame(
-            animation: widget.predictiveAnimation,
-            startBackEvent: widget.startBackEvent,
-            currentBackEvent: widget.currentBackEvent,
-            child: widget.child,
-          );
+          final PredictiveBackPageSharedElementFrame predictiveFrame =
+              PredictiveBackPageSharedElementFrame(
+                animation: widget.predictiveAnimation,
+                startBackEvent: widget.startBackEvent,
+                currentBackEvent: widget.currentBackEvent,
+                child: widget.child,
+              );
 
           if (widget.route.isCurrent) {
             return ColoredBox(color: Colors.black54, child: predictiveFrame);
@@ -419,19 +420,20 @@ class _PredictiveBackPageSharedElementTransitionState
           if (widget.secondaryAnimation.isAnimating) {
             return ColoredBox(
               color: widget.backgroundColor ?? Theme.of(context).colorScheme.surface,
-              child: Transform.translate(offset: Offset(-100, 0), child: predictiveFrame),
+              child: Transform.translate(offset: const Offset(-100, 0), child: predictiveFrame),
             );
           }
         }
 
-        if (commitController.isForwardOrCompleted) {
-          final predictiveFrame = PredictiveBackPageSharedElementFrame(
-            animation: widget.predictiveAnimation,
-            startBackEvent: widget.startBackEvent,
-            currentBackEvent: widget.currentBackEvent,
-            suppressionFactor: 1 - commitController.value,
-            child: widget.child,
-          );
+        if (commitController.isAnimating) {
+          final PredictiveBackPageSharedElementFrame predictiveFrame =
+              PredictiveBackPageSharedElementFrame(
+                animation: widget.predictiveAnimation,
+                startBackEvent: widget.startBackEvent,
+                currentBackEvent: widget.currentBackEvent,
+                suppressionFactor: 1 - commitController.value,
+                child: widget.child,
+              );
 
           if (!widget.route.isActive) {
             return Opacity(
