@@ -6,9 +6,12 @@
 library;
 
 import 'package:flutter/services.dart';
+import 'package:flutter/src/material/predictive_back_builder.dart';
 import 'package:flutter/widgets.dart';
 
+import 'colors.dart';
 import 'page_transitions_theme.dart';
+import 'theme.dart';
 
 /// Used by [PageTransitionsTheme] to define a [MaterialPageRoute] page
 /// transition animation that looks like the default page transition used on
@@ -283,6 +286,184 @@ class _PredictiveBackPageTransition extends StatelessWidget {
       animation: secondaryAnimation,
       builder: _secondaryAnimatedBuilder,
       child: AnimatedBuilder(animation: animation, builder: _primaryAnimatedBuilder, child: child),
+    );
+  }
+}
+
+class PredictiveBackPageSharedElementTransitionsBuilder extends PageTransitionsBuilder {
+  /// Creates an instance of a [PageTransitionsBuilder] that matches Android U's
+  /// predictive back transition.
+  PredictiveBackPageSharedElementTransitionsBuilder({
+    this.backgroundColor,
+    PageTransitionsBuilder? parentTransitionsBuilder,
+  }) : parentTransitionsBuilder =
+           parentTransitionsBuilder ??
+           FadeForwardsPageTransitionsBuilder(backgroundColor: backgroundColor);
+
+  final PageTransitionsBuilder parentTransitionsBuilder;
+  final Color? backgroundColor;
+
+  @override
+  Duration get transitionDuration => parentTransitionsBuilder.transitionDuration;
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return PredictiveBackGestureBuilder(
+      updateRouteUserGestureProgress: route.isCurrent,
+      transitionBuilder: (
+        context,
+        phase,
+        startBackEvent,
+        currentBackEvent,
+        predictiveAnimation,
+        child,
+      ) {
+        return _PredictiveBackPageSharedElementTransition(
+          route: route,
+          animation: animation,
+          secondaryAnimation: secondaryAnimation,
+          phase: phase,
+          startBackEvent: startBackEvent,
+          currentBackEvent: currentBackEvent,
+          predictiveAnimation: predictiveAnimation,
+          parentPageTransitionBuilder: parentTransitionsBuilder,
+          backgroundColor: backgroundColor,
+          child: child,
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+class _PredictiveBackPageSharedElementTransition extends StatefulWidget {
+  const _PredictiveBackPageSharedElementTransition({
+    required this.route,
+    required this.animation,
+    required this.secondaryAnimation,
+    required this.phase,
+    this.startBackEvent,
+    this.currentBackEvent,
+    required this.predictiveAnimation,
+    required this.child,
+    required this.parentPageTransitionBuilder,
+    this.backgroundColor,
+  });
+
+  final PageRoute<dynamic> route;
+  final Animation<double> animation;
+  final Animation<double> secondaryAnimation;
+  final PredictiveBackPhase phase;
+  final PredictiveBackEvent? startBackEvent;
+  final PredictiveBackEvent? currentBackEvent;
+  final Animation<double> predictiveAnimation;
+  final PageTransitionsBuilder parentPageTransitionBuilder;
+  final Color? backgroundColor;
+  final Widget child;
+
+  @override
+  State<_PredictiveBackPageSharedElementTransition> createState() =>
+      _PredictiveBackPageSharedElementTransitionState();
+}
+
+class _PredictiveBackPageSharedElementTransitionState
+    extends State<_PredictiveBackPageSharedElementTransition>
+    with TickerProviderStateMixin {
+  late final AnimationController commitController = AnimationController(
+    duration: const Duration(milliseconds: 300),
+    vsync: this,
+  );
+
+  @override
+  void didUpdateWidget(_PredictiveBackPageSharedElementTransition oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.phase == oldWidget.phase) {
+      return;
+    }
+
+    if (widget.phase == PredictiveBackPhase.commit && !commitController.isAnimating) {
+      commitController.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    commitController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: commitController,
+      builder: (context, child) {
+        if (widget.route.popGestureInProgress) {
+          final predictiveFrame = PredictiveBackPageSharedElementFrame(
+            animation: widget.predictiveAnimation,
+            startBackEvent: widget.startBackEvent,
+            currentBackEvent: widget.currentBackEvent,
+            child: widget.child,
+          );
+
+          if (widget.route.isCurrent) {
+            return ColoredBox(color: Colors.black54, child: predictiveFrame);
+          }
+
+          if (widget.secondaryAnimation.isAnimating) {
+            return ColoredBox(
+              color: widget.backgroundColor ?? Theme.of(context).colorScheme.surface,
+              child: Transform.translate(offset: Offset(-100, 0), child: predictiveFrame),
+            );
+          }
+        }
+
+        if (commitController.isForwardOrCompleted) {
+          final predictiveFrame = PredictiveBackPageSharedElementFrame(
+            animation: widget.predictiveAnimation,
+            startBackEvent: widget.startBackEvent,
+            currentBackEvent: widget.currentBackEvent,
+            suppressionFactor: 1 - commitController.value,
+            child: widget.child,
+          );
+
+          if (!widget.route.isActive) {
+            return Opacity(
+              opacity: 1 - commitController.value,
+              child: ColoredBox(
+                color: Colors.black54,
+                child: Transform.translate(
+                  offset: Offset(100 * commitController.value, 0),
+                  child: predictiveFrame,
+                ),
+              ),
+            );
+          }
+          if (widget.route.isCurrent) {
+            return ColoredBox(
+              color: Theme.of(context).colorScheme.surface,
+              child: Transform.translate(
+                offset: Offset(-100 * (1 - commitController.value), 0),
+                child: predictiveFrame,
+              ),
+            );
+          }
+        }
+
+        return widget.parentPageTransitionBuilder.buildTransitions(
+          widget.route,
+          context,
+          widget.animation,
+          widget.secondaryAnimation,
+          widget.child,
+        );
+      },
     );
   }
 }
