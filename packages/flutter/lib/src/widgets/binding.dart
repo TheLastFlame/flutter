@@ -779,9 +779,7 @@ mixin WidgetsBinding
   ///  * [addObserver], for the method that adds observers in the first place.
   ///  * [WidgetsBindingObserver], which has an example of using this method.
   bool removeObserver(WidgetsBindingObserver observer) {
-    if (observer == _backGestureObserver) {
-      _backGestureObserver = null;
-    }
+    _backGestureObservers.remove(observer);
     return _observers.remove(observer);
   }
 
@@ -918,32 +916,35 @@ mixin WidgetsBinding
     return false;
   }
 
-  // The observer that is currently handling an active predictive back gesture.
-  WidgetsBindingObserver? _backGestureObserver;
+  // The observers that are currently handling an active predictive back gesture.
+  final List<WidgetsBindingObserver> _backGestureObservers = [];
 
   Future<bool> _handleStartBackGesture(Map<String?, Object?> arguments) {
-    _backGestureObserver = null;
+    _backGestureObservers.clear();
+    bool result = false;
     final PredictiveBackEvent backEvent = PredictiveBackEvent.fromMap(arguments);
     for (final WidgetsBindingObserver observer in List<WidgetsBindingObserver>.of(_observers)) {
       if (observer.handleStartBackGesture(backEvent)) {
-        _backGestureObserver = observer;
-        return Future<bool>.value(true);
+        _backGestureObservers.add(observer);
+        result = true;
       }
     }
-    return Future<bool>.value(false);
+    return Future<bool>.value(result);
   }
 
   Future<void> _handleUpdateBackGestureProgress(Map<String?, Object?> arguments) async {
-    if (_backGestureObserver == null) {
+    if (_backGestureObservers.isEmpty) {
       return;
     }
 
     final PredictiveBackEvent backEvent = PredictiveBackEvent.fromMap(arguments);
-    _backGestureObserver!.handleUpdateBackGestureProgress(backEvent);
+    for (final WidgetsBindingObserver observer in _backGestureObservers) {
+      observer.handleUpdateBackGestureProgress(backEvent);
+    }
   }
 
   Future<void> _handleCommitBackGesture() async {
-    if (_backGestureObserver == null) {
+    if (_backGestureObservers.isEmpty) {
       // If the predictive back was not handled, then the route should be popped
       // like a normal, non-predictive back. For example, this will happen if a
       // back gesture occurs but no predictive back route transition exists to
@@ -952,15 +953,18 @@ mixin WidgetsBinding
       await handlePopRoute();
       return;
     }
-    _backGestureObserver?.handleCommitBackGesture();
+    for (final WidgetsBindingObserver observer in _backGestureObservers) {
+      observer.handleCommitBackGesture();
+    }
   }
 
   Future<void> _handleCancelBackGesture() async {
-    if (_backGestureObserver == null) {
+    if (_backGestureObservers.isEmpty) {
       return;
     }
-
-    _backGestureObserver!.handleCancelBackGesture();
+    for (final WidgetsBindingObserver observer in _backGestureObservers) {
+      observer.handleCancelBackGesture();
+    }
   }
 
   /// Called when the host tells the app to push a new route onto the
