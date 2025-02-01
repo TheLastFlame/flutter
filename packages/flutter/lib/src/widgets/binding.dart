@@ -138,7 +138,7 @@ abstract mixin class WidgetsBindingObserver {
   ///
   /// Currently, this is only used on Android devices that support the
   /// predictive back feature.
-  void handleCommitBackGesture() {}
+  bool handleCommitBackGesture() => false;
 
   /// Called when a predictive back gesture is canceled, indicating that no
   /// navigation should occur.
@@ -944,7 +944,14 @@ mixin WidgetsBinding
   }
 
   Future<void> _handleCommitBackGesture() async {
-    if (_backGestureObservers.isEmpty) {
+    bool isHandled = false;
+    for (final WidgetsBindingObserver observer in _backGestureObservers) {
+      if (observer.handleCommitBackGesture()) {
+        isHandled = true;
+      }
+    }
+
+    if (!isHandled) {
       // If the predictive back was not handled, then the route should be popped
       // like a normal, non-predictive back. For example, this will happen if a
       // back gesture occurs but no predictive back route transition exists to
@@ -952,9 +959,6 @@ mixin WidgetsBinding
       // doesn't cause a predictive transition.
       await handlePopRoute();
       return;
-    }
-    for (final WidgetsBindingObserver observer in _backGestureObservers) {
-      observer.handleCommitBackGesture();
     }
   }
 

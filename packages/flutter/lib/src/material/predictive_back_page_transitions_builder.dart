@@ -141,9 +141,10 @@ class _PredictiveBackGestureDetectorState extends State<_PredictiveBackGestureDe
   }
 
   @override
-  void handleCommitBackGesture() {
+  bool handleCommitBackGesture() {
     widget.route.handleCommitBackGesture();
     startBackEvent = currentBackEvent = null;
+    return false;
   }
 
   // End WidgetsBindingObserver.
