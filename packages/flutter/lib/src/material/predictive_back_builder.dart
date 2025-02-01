@@ -293,7 +293,7 @@ class _PredictiveBackGestureObserverState extends State<PredictiveBackGestureObs
   }
 
   @override
-  void handleCommitBackGesture() {
+  bool handleCommitBackGesture() {
     phase = PredictiveBackPhase.commit;
 
     if (widget.route.popGestureInProgress) {
@@ -302,9 +302,7 @@ class _PredictiveBackGestureObserverState extends State<PredictiveBackGestureObs
       phase = PredictiveBackPhase.idle;
     }
 
-    if (widget.route.isCurrent) {
-      widget.route.navigator?.pop();
-    }
+    return false;
   }
 
   // End WidgetsBindingObserver.
