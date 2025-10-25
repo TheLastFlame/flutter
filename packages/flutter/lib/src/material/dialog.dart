@@ -22,6 +22,7 @@ import 'dialog_theme.dart';
 import 'ink_well.dart';
 import 'material.dart';
 import 'material_localizations.dart';
+import 'predictive_back_transition.dart';
 import 'text_theme.dart';
 import 'theme.dart';
 
@@ -1663,6 +1664,7 @@ class DialogRoute<T> extends RawDialogRoute<T> {
     super.traversalEdgeBehavior,
     super.fullscreenDialog,
     AnimationStyle? animationStyle,
+    bool usePredictiveBack = true,
   }) : _animationStyle = animationStyle,
        super(
          pageBuilder:
@@ -1671,7 +1673,32 @@ class DialogRoute<T> extends RawDialogRoute<T> {
                Animation<double> animation,
                Animation<double> secondaryAnimation,
              ) {
-               final Widget pageChild = Builder(builder: builder);
+               final Widget pageChild;
+               if (!usePredictiveBack) {
+                 pageChild = Builder(builder: builder);
+               } else {
+                 pageChild = PredictiveBackGestureBuilder(
+                   transitionBuilder:
+                       (
+                         BuildContext context,
+                         PredictiveBackPhase phase,
+                         PredictiveBackEvent? startBackEvent,
+                         PredictiveBackEvent? currentBackEvent,
+                         Widget child,
+                       ) {
+                         return PredictiveBackTransition(
+                           progress: AlwaysStoppedAnimation<double>(
+                             currentBackEvent?.progress ?? 0.0,
+                           ),
+                           startBackEvent: startBackEvent,
+                           currentBackEvent: currentBackEvent,
+                           child: child,
+                         );
+                       },
+                   child: Builder(builder: builder),
+                 );
+               }
+
                Widget dialog = themes?.wrap(pageChild) ?? pageChild;
                if (useSafeArea) {
                  dialog = SafeArea(child: dialog);

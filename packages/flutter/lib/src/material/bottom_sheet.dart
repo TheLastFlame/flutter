@@ -20,6 +20,7 @@ import 'debug.dart';
 import 'material.dart';
 import 'material_localizations.dart';
 import 'motion.dart';
+import 'predictive_back_transition.dart';
 import 'scaffold.dart';
 import 'theme.dart';
 
@@ -845,6 +846,7 @@ class ModalBottomSheetRoute<T> extends PopupRoute<T> {
     this.anchorPoint,
     this.useSafeArea = false,
     this.sheetAnimationStyle,
+    this.usePredictiveBack = true,
   });
 
   /// A builder for the contents of the sheet.
@@ -1020,6 +1022,8 @@ class ModalBottomSheetRoute<T> extends PopupRoute<T> {
   ///  * [ModalBarrier], which uses this field as onTapHint when it has an onTap action.
   final String? barrierOnTapHint;
 
+  final bool usePredictiveBack;
+
   final ValueNotifier<EdgeInsets> _clipDetailsNotifier = ValueNotifier<EdgeInsets>(EdgeInsets.zero);
 
   @override
@@ -1093,7 +1097,8 @@ class ModalBottomSheetRoute<T> extends PopupRoute<T> {
           final BottomSheetThemeData defaults = Theme.of(context).useMaterial3
               ? _BottomSheetDefaultsM3(context)
               : const BottomSheetThemeData();
-          return _ModalBottomSheet<T>(
+
+          final Widget child = _ModalBottomSheet<T>(
             route: this,
             backgroundColor:
                 backgroundColor ??
@@ -1112,6 +1117,32 @@ class ModalBottomSheetRoute<T> extends PopupRoute<T> {
             scrollControlDisabledMaxHeightRatio: scrollControlDisabledMaxHeightRatio,
             enableDrag: enableDrag,
             showDragHandle: showDragHandle ?? (enableDrag && (sheetTheme.showDragHandle ?? false)),
+          );
+
+          if (!usePredictiveBack) {
+            return child;
+          }
+
+          return PredictiveBackGestureBuilder(
+            transitionBuilder:
+                (
+                  BuildContext context,
+                  PredictiveBackPhase phase,
+                  PredictiveBackEvent? startBackEvent,
+                  PredictiveBackEvent? currentBackEvent,
+                  Widget child,
+                ) {
+                  return PredictiveBackTransition(
+                    progress: AlwaysStoppedAnimation<double>(currentBackEvent?.progress ?? 0.0),
+                    startBackEvent: startBackEvent,
+                    currentBackEvent: currentBackEvent,
+                    useXShift: false,
+                    useYShift: false,
+                    alignment: Alignment.bottomCenter,
+                    child: child,
+                  );
+                },
+            child: child,
           );
         },
       ),
